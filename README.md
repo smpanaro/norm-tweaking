@@ -7,7 +7,7 @@ This repo supports:
 - Calibration Data Generation - Follows LLM-QAT's synthetic data generation strategy.
 - Norm Tweaking Algorithm - Adjusts layer norm parameters to improve model performance.
 
-**NOTE**: This repo is functional but does not yet replicate the results from the paper. PRs welcome! See the [TODOs](#todo) for places to contribute.
+**NOTE**: This repo is functional but does not yet replicate the results from the paper. PRs welcome! See the [this discussion](https://github.com/smpanaro/norm-tweaking/discussions/1) or the [TODOs](#todo) for places to contribute.
 
 # Get Started
 ```shell
