@@ -53,7 +53,7 @@ Currently this repo has only been tested on the smallest gpt2 using 6-bit per-ch
 |--   |--                   |--  |--   |--       |--           |--         |--                 |
 |gpt2†|6-bit per-channel RTN|2e-4|5    |37.3698  |37.9450      |37.8323    |0.1127 (19.5%)     |
 
-<sub>† lm_eval reports different results than the gpt2 paper for perplexity. Using a [different method]() that nearly matches the original paper's results yields: float 29.9389, quantized 30.6000, tweaked 30.3681, delta 0.2319 (35.1%).</sub>
+<sub>† lm_eval reports different results than the gpt2 paper for perplexity. Using a [different method](https://huggingface.co/docs/transformers/perplexity) that nearly matches the original paper's results yields: float 29.9389, quantized 30.6000, tweaked 30.3681, delta 0.2319 (35.1%).</sub>
 
 # TODO
 - [x] Add a fast eval (delta mean, delta var like in the paper's graph)
