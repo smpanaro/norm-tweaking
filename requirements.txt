@@ -1,0 +1,5 @@
+transformers>=4.36.2
+torch==2.1.0
+tqdm>=4.66.1
+safetensors>=0.4.1
+#lm_eval==0.4.0 # Install from source if you're going to do gridsearch.

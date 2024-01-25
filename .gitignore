@@ -1,0 +1,9 @@
+env
+*.pyc
+*.zip
+*.egg-info
+
+data/
+models/
+
+.vscode/
