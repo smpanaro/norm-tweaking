@@ -1,4 +1,4 @@
-env
+env/
 *.pyc
 *.zip
 *.egg-info
