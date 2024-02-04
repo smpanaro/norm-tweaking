@@ -3,7 +3,7 @@ import gc
 import argparse
 
 from safetensors.torch import safe_open
-from normtweaking import NormTweaker, LinearQuantizer
+from normtweaking import NormTweaker, LinearQuantizer, PreComputedQuantizer
 from transformers import AutoModel, AutoModelForCausalLM
 
 def load_samples(data_path: str, device: Optional[str]):
@@ -16,15 +16,26 @@ def load_samples(data_path: str, device: Optional[str]):
     print(f"Loaded {len(samples)} samples from {data_path}")
     return samples
 
-def run_tweaking(model_path: str, data_path: str, save_dir: str, device: Optional[str]):
+def build_quantizer(quantizer_name: str, nbits: int, group_size: int, precomputed_tensors_path: Optional[str], device: Optional[str]):
+    quant = None
+    if quantizer_name == "linear":
+        quant = LinearQuantizer(nbits=nbits, group_size=group_size)
+    elif quantizer_name == "precomputed":
+        quant = PreComputedQuantizer(precomputed_tensors_path, device)
+    else:
+        raise ValueError(f"Unknown quantizer {quantizer_name}")
+
+    return quant
+
+def run_tweaking(model_path: str, quantizer, data_path: str, save_dir: str, device: Optional[str]):
     samples = load_samples(data_path, device)
 
     model = AutoModel.from_pretrained(model_path)
     print(f"Loaded huggingface model {model_path}")
-    tweaker = NormTweaker(LinearQuantizer(nbits=4, group_size=1), save_dir=save_dir)
+    tweaker = NormTweaker(quantizer, save_dir=save_dir)
     tweaker.tweak(model, samples)
 
-def run_gridsearch(model_path: str, data_path: str, save_dir: str, device: Optional[str], learning_rates: Optional[list[float]], scales: Optional[list[float]]):
+def run_gridsearch(model_path: str, quantizer, data_path: str, save_dir: str, device: Optional[str], learning_rates: Optional[list[float]], scales: Optional[list[float]]):
     from lm_eval import simple_evaluate, tasks
     from lm_eval.models.huggingface import HFLM
 
@@ -55,7 +66,7 @@ def run_gridsearch(model_path: str, data_path: str, save_dir: str, device: Optio
                 # Only log the first time.
                 print(f"Loaded huggingface model {model_path}")
 
-            tweaker = NormTweaker(LinearQuantizer(nbits=6, group_size=1), save_dir=save_dir, initial_learning_rate=lr, lr_scale=scale, skip_tweak=skip_tweak)
+            tweaker = NormTweaker(quantizer, save_dir=save_dir, initial_learning_rate=lr, lr_scale=scale, skip_tweak=skip_tweak)
 
             # This is the same for all iterations, so compute it once.
             if first_layer_inputs is None:
@@ -102,10 +113,20 @@ if __name__ == '__main__':
     parser.add_argument('--device', type=str, help='PyTorch device', default=None)
     parser.add_argument('--grid-search-lr', nargs='*', type=float, help='List of learning rates for grid search, paper suggests starting at 1e-5', default=[])
     parser.add_argument('--grid-search-scale', nargs='*', type=float, help='List of scales for grid search', default=[])
+    # Shared Among Quantizers
+    parser.add_argument('--quantizer', type=str, help='Quantizer to use', default='linear')
+    parser.add_argument('--nbits', type=int, help='Number of bits to quantize to', default=6)
+    # Linear Quantizer
+    parser.add_argument('--group-size', type=int, help='Number of channels to group together for quantization', default=1)
+    # PreComputed
+    parser.add_argument('--precomputed-tensors-path', type=str, help='Path to precomputed quantization tensors', default=None)
 
     args = parser.parse_args()
 
+    quantizer = build_quantizer(args.quantizer, args.nbits, args.group_size, args.precomputed_tensors_path, args.device)
+    print(f"Using quantizer: {quantizer.metadata()}")
+
     if len(args.grid_search_lr) > 0 or len(args.grid_search_scale) > 0:
-        run_gridsearch(args.model, args.data, args.save_dir, args.device, args.grid_search_lr, args.grid_search_scale)
+        run_gridsearch(args.model, quantizer, args.data, args.save_dir, args.device, args.grid_search_lr, args.grid_search_scale)
     else:
-        run_tweaking(args.model, args.data, args.save_dir, args.device)
+        run_tweaking(args.model, quantizer, args.data, args.save_dir, args.device)

@@ -3,7 +3,6 @@ from torch import nn
 from tqdm import tqdm
 from datetime import datetime
 from safetensors.torch import save_model
-import safetensors.torch as safe_torch
 
 import os
 import json
@@ -120,7 +119,7 @@ class NormTweaker:
         # Quantize the weights in-place.
         with torch.no_grad():
             for name, param in tqdm(layer.named_parameters(), desc=f"layer {i}: quantize", disable=not VERBOSE):
-                self.quantizer.quantize(name, param)
+                self.quantizer.quantize(f"h.{i}.{name}", param) # FIXME: gpt2 specific
 
         # layer.train() # Not sure if this is needed.
 

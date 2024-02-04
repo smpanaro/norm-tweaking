@@ -47,11 +47,13 @@ lm_eval --model hf \
 </details>
 
 # Results
-Currently this repo has only been tested on the smallest gpt2 using 6-bit per-channel RTN quantization. With the correct hyperparameters there is a slight improvement in WikiText perplexity as reported by lm_eval.
+Currently this repo has only been tested on the smallest gpt2. With the correct hyperparameters there is a slight improvement in WikiText perplexity as reported by lm_eval.
 
 |model|scheme               |lr  |scale|float ppl|quantized ppl|tweaked ppl|delta recovered (%)|
 |--   |--                   |--  |--   |--       |--           |--         |--                 |
 |gpt2†|6-bit per-channel RTN|2e-4|5    |37.3698  |37.9450      |37.8323    |0.1127 (19.5%)     |
+|gpt2 |6-bit k-means        |1e-5|20   |37.3698  |38.4925      |38.4474    |0.0451 (4.0%)      |
+|gpt2 |4-bit k-means        |1e-5|25   |37.3698  |77.8160      |69.5995    |8.2165 (20.3%)     |
 
 <sub>† lm_eval reports different results than the gpt2 paper for perplexity. Using a [different method](https://huggingface.co/docs/transformers/perplexity) that nearly matches the original paper's results yields: float 29.9389, quantized 30.6000, tweaked 30.3681, delta 0.2319 (35.1%).</sub>
 
@@ -59,7 +61,8 @@ Currently this repo has only been tested on the smallest gpt2 using 6-bit per-ch
 - [x] Add a fast eval (delta mean, delta var like in the paper's graph)
 - [x] Add a thorough eval (perplexity using lm-eval-harness)
 - [ ] Generate calibration by taking language into account as described in the paper (how?)
-- [ ] Support loading pre-quantized weights (gptq, awq, gguf?)
+- [x] Support loading pre-quantized weights
+- [ ] Convert common formats to pre-quantized weights (gptq, awq, gguf?)
 - [ ] Support non-gpt2 models (compare results with the paper)
 - [ ] Try end-to-end tweaking (similar to OBD/SqueezeLLM)
 - [ ] Try a larger calibration dataset (see AQLM arXiv:2401.06118)

@@ -86,4 +86,24 @@ class PreComputedQuantizer(Quantizer):
     - No need to support multiple different quantization libraries here.
       Just dump the quantized values as float16 externally and do a lookup here.
     """
-    pass
+    def __init__(self, path: str, device):
+        self.path = path
+        self.device = device
+        self.tensors = None
+
+    def metadata(self) -> dict[str, str]:
+        return  {
+            **super().metadata(),
+            "path": self.path,
+        }
+
+    def quantize(self, name: str, param: nn.Parameter):
+        assert self.path.endswith(".safetensors"), "Only .safetensors files are supported."
+
+        if self.tensors is None:
+            from safetensors.torch import safe_open
+            self.tensors = safe_open(self.path, framework="pt", device=self.device or "cpu")
+
+        param.data = self.tensors.get_tensor(name)
+
+
