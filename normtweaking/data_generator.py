@@ -15,7 +15,7 @@ class CalibrationData:
         samples = [el for t in self.tensors for el in t]
         named_samples = {f"sample_{i}": s for i, s in enumerate(samples)}
 
-        filename = f"normtweaking_calibration_data_{self.model_name.replace('/','-')}_{self.token_length}.safetensors"
+        filename = f"normtweaking_calibration_data_{self.model_name.replace('/','-')}_{self.token_length}token_{len(samples)}samples.safetensors"
         os.makedirs(save_dir, exist_ok=True)
         save_file(named_samples, f"{save_dir}/{filename}")
 
@@ -68,7 +68,7 @@ class DataGenerator:
         # tensors = [self._generate_sample(offset, start_token, token_length) for offset, start_token in tqdm(start_token)]
 
         tensors = [self._generate_batch_samples(offset, ts, token_length) for offset, ts in tqdm(enumerate(token_groups))]
-        return CalibrationData(self.model.config.model_type, token_length, tensors)
+        return CalibrationData(self.model.config.name_or_path, token_length, tensors)
 
     def _generate_sample(self, offset: int, start_token: int, token_length: int, disalllowed_tokens: set[int]):
         """
@@ -124,6 +124,8 @@ class DataGenerator:
         attention_mask = torch.ones_like(tokens)
         inputs = {'input_ids': tokens, 'attention_mask': attention_mask, 'pad_token_id': pad_token_id}
         tokens = self.model.generate(**inputs, max_length=token_length, do_sample=True)
+
+        # TODO: Trim superfluos endoftext tokens.
 
         # assert tokens.shape[-1] <= token_length, f"Generated too many tokens: {tokens.shape[-1]} > {token_length}"
         # assert tokens[0, 0] == start_token, f"Generated token does not match start token: {tokens[0, 0]} != {start_token}"
