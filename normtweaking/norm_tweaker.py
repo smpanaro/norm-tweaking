@@ -49,7 +49,15 @@ class NormTweaker:
     17: Get the high-performance quantized LLMs
     """
 
-    def __init__(self, quantizer: Quantizer, save_dir: str, skip_tweak=False, initial_learning_rate=None, lr_scale=None):
+    def __init__(self,
+            quantizer: Quantizer,
+            save_dir: str,
+            skip_tweak=False,
+            initial_learning_rate=None,
+            lr_scale=None,
+            total_iters: Optional[int] = None,
+            apply_layerwise: bool = True
+    ):
         """
         quantizer: Quantizer subclass to quantize the linear layer weights
         """
@@ -66,7 +74,13 @@ class NormTweaker:
         # Skip norm tweaking, only quantize the model.
         # Useful for getting a non-tweaked baseline.
         self.skip_tweak = skip_tweak
-        # TODO: Support total_iters (the paper says 1 is optimal so starting there).
+        # Tweak each layer individually, as in the paper.
+        # False to tweak the entire model end-to-end.
+        self.apply_layerwise = apply_layerwise
+        # Number of passes through the data set for each layer. Per the paper 1 is optimal.
+        # Slightly higher seems better when apply_layerwise is False.
+        self.total_iters = total_iters if total_iters is not None else 1
+
         self.train_metrics = []
         self.saver = ModelSaver(self)
 
@@ -76,7 +90,21 @@ class NormTweaker:
         else:
             current_inputs = self.collect_first_layer_inputs(model, samples)
 
-        for i, layer in tqdm(list(enumerate(model.h)), desc="layers"):
+        class EndToEndWrapper(nn.Module):
+            def __init__(self, module_list, ln_f):
+                super().__init__()
+                self.module_list = module_list
+                self.ln_f = ln_f
+            def forward(self, x):
+                for m in self.module_list:
+                    outputs = m(x)
+                    x = outputs[0]
+                x = self.ln_f(x)
+                return (x,)
+
+        all_layers = list(model.h) if self.apply_layerwise else [EndToEndWrapper(model.h, model.ln_f)]
+
+        for i, layer in tqdm(list(enumerate(all_layers)), desc="layers"):
             # Slightly un-intuitive but we want to increase the rate as the layers progress
             # because error accumulates and we want to correct it more strongly.
             lr = self.initial_learning_rate * (1 + self.lr_scale * (i/len(model.h)))
@@ -109,7 +137,6 @@ class NormTweaker:
 
         returns a map of sample name to the corresponding quantized output from this layer
         """
-
         # Calculate the float outputs.
         fouts = {}
         with torch.no_grad():
@@ -119,7 +146,9 @@ class NormTweaker:
         # Quantize the weights in-place.
         with torch.no_grad():
             for name, param in tqdm(layer.named_parameters(), desc=f"layer {i}: quantize", disable=not VERBOSE):
-                self.quantizer.quantize(f"h.{i}.{name}", param) # FIXME: gpt2 specific
+                # FIXME: this is gpt2 specific
+                full_name = f"h.{i}.{name}" if self.apply_layerwise else name.replace(f"module_list.", f"h.")
+                self.quantizer.quantize(full_name, param)
 
         # layer.train() # Not sure if this is needed.
 
@@ -146,7 +175,7 @@ class NormTweaker:
         # My guess is we want >1 batch since the paper mentions using an optimizer and
         # also setting the learning rate. My reasoning: I don't think using an optimizer
         # is useful unless we go through this loop >1 time.
-        for _ in range(1): # iters
+        for _ in range(self.total_iters):
             for name, sample in tqdm(samples.items(), desc=f"layer {i}: tweak", disable=not VERBOSE):
                 optimizer.zero_grad()
 

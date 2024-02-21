@@ -64,5 +64,7 @@ Currently this repo has only been tested on the smallest gpt2. With the correct 
 - [x] Support loading pre-quantized weights
 - [ ] Convert common formats to pre-quantized weights (gptq, awq, gguf?)
 - [ ] Support non-gpt2 models (compare results with the paper)
-- [ ] Try end-to-end tweaking (similar to OBD/SqueezeLLM)
-- [ ] Try a larger calibration dataset (see AQLM arXiv:2401.06118)
+- [x] Try end-to-end tweaking (similar to OBD/SqueezeLLM)
+- [x] Try tweaking the final layer norm (ln_f)
+- [x] Try a larger calibration dataset (see AQLM arXiv:2401.06118)
+- [ ] Grid search num iters
